@@ -1,16 +1,24 @@
 import numpy as np
 from show import *
 
-X = [[1, 2, 3],[3, 4, 5],[5, 6, 7]]  
-Y = [[4, 4, 3], [0, 1, 7], [3, 1, 6]]
+# X = [[1, 2, 3],[3, 4, 5],[5, 6, 7]]  
+# Y = [[4, 4, 3], [0, 1, 7], [3, 1, 6]]
 
-display = Display()
-display.show2d(X)
-plt.pause(5)
+# display = Display()
+# display.show2d(X)
+# plt.pause(5)
 
-display.show2d(Y)
-plt.pause(5)
+# display.show2d(Y)
+# plt.pause(5)
 
+A = np.zeros((3, 5))
+print(A.shape)
+
+B = np.matrix([1, 2, 3]).T
+print(B.shape)
+
+A[:, 1:2] = B 
+print(A)
 
 
 

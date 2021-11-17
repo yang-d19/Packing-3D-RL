@@ -7,12 +7,14 @@ from utils import *
 import numpy as np
 from show import Display
 import matplotlib.pyplot as plt
+import time
 
 # display = Display()
 
 # 还没写的东西：
 # 判断放置稳定性和可抓取性
 # fallback 情形
+
 
 class Geometry(object):
 
@@ -81,6 +83,8 @@ class Geometry(object):
     # 旋转几何体
     def rotate(self, attitude: Attitude):
 
+        t_rotateStart = time.time()
+
         # roll 是绕 x 轴旋转，pitch 是绕 y 轴旋转，yaw 是绕 z 轴旋转
         # 将角度值转换成弧度制
         alpha = attitude.roll * math.pi / 180
@@ -112,40 +116,52 @@ class Geometry(object):
 
         # 存储变换后的点
         new_points = []
-    
-        # 下面是直接旋转变换的方式，但是旋转后的物体有空洞
-        # 因为离散点的映射可能会映射到相同的整数点内
-        # for z in range(self.z_size):
-        #     for x in range(self.x_size):
-        #         for y in range(self.y_size):
-        #             if self.cube[z][x][y] == 1:
-        #                 # 1*3 转置成 1*3
-        #                 curr_point = np.mat([x, y, z]).T
-        #                 new_point = T_rotate * curr_point + offset
-        #                 # 将 new_point 的坐标归入到最近的整数
-        #                 for i in range(3):
-        #                     new_point[i, 0] = round(new_point[i, 0])
-        #                 # 变换后的坐标列表
-        #                 new_points.append(new_point)
 
         # 改进后：逆映射
         # 因为单个旋转矩阵是可逆的，而可逆矩阵的乘积是可逆的
         # 所以可以找到变化的逆映射，遍历映射后空间，查找映射前的值
         upper_boxsize = math.ceil(2 * radius)
         T_rotate_inv = T_rotate.I
+
+        # 逐个点做变换太慢，将所有点组合为一个矩阵，一起乘以旋转的逆映射
+        # 组合矩阵的大小为 3 * n^3
+        currPointAssemble = np.zeros((3, pow(upper_boxsize, 3)))
+
+        t_beforeAssemble = time.time()
+
+        pointCnt = 0
         for z in range(upper_boxsize):
             for x in range(upper_boxsize):
                 for y in range(upper_boxsize):
-                    curr_point = np.mat([x, y, z]).T
-                    origin_point = T_rotate_inv * (curr_point - offset)
-                    [ox, oy, oz] = [round(origin_point[i, 0]) for i in range(3)]
-                    # 原坐标不在物体框架中，直接跳过
-                    if ox < 0 or ox >= self.x_size \
-                        or oy < 0 or oy >= self.y_size \
-                        or oz < 0 or oz >= self.z_size:
-                        continue
-                    if self.cube[oz][ox][oy] > 0:
-                        new_points.append(curr_point)
+                    currPoint = np.mat([x, y, z]).T
+                    currPointAssemble[:, pointCnt: pointCnt + 1] = currPoint - offset
+                    pointCnt += 1
+        
+        t_afterAssemble = time.time()
+        # print("Point Assemble Time: ", t_afterAssemble - t_beforeAssemble, "\n")
+
+        t_beforeMatMul = time.time()
+        
+        # 很大的矩阵乘法
+        originPointAssemble = T_rotate_inv * currPointAssemble
+
+        t_afterMatMul = time.time()
+        # print("Matrix Multiply Time: ", t_afterMatMul - t_beforeMatMul, "\n")
+
+
+        t_beforeCreate = time.time()
+
+        # 遍历逆变换后点集的所有列
+        for idx in range(originPointAssemble.shape[1]):
+            [ox, oy, oz] = [round(originPointAssemble[i, idx]) for i in range(3)]
+            # 原坐标不在物体框架中，直接跳过
+            if ox < 0 or ox >= self.x_size \
+                or oy < 0 or oy >= self.y_size \
+                or oz < 0 or oz >= self.z_size:
+                continue
+            if self.cube[oz][ox][oy] > 0:
+                new_points.append(currPointAssemble[:, idx: idx + 1] + offset)
+
 
         min_x = min_y = min_z = math.ceil(radius)
         max_x = max_y = max_z = 0
@@ -174,6 +190,12 @@ class Geometry(object):
         for point in new_points:
             [x, y, z] = [int(point[i, 0]) for i in range(3)]
             self.cube[z][x][y] = 1
+        
+        t_afterCreate = time.time()
+        # print("Create New Geometry Time: ", t_afterCreate - t_beforeCreate, "\n")
+
+        t_rotateEnd = time.time()
+        # print("Rotat Run Time: ", t_rotateEnd - t_rotateStart, "\n\n")
 
 
     def add(self, geom, position: Position, coef=1):
@@ -336,16 +358,24 @@ class Container(object):
                 y = math.floor(self.geometry.y_size * j / grid_num)
                 grid_coords.append([x, y])
 
+        t1 = time.time()
+
         # step_width 为遍历 roll, pitch, yaw 的步长
         # 预处理：提前找到一些比较稳定的 roll, pitch
         # yaw 不影响物体放在平面上的稳定性
         stable_attitudes = item.planar_stable_attitude(step_width)
+
+        t2 = time.time()
+        print("find state attitudes: ", t2 - t1)
 
         # for att in stable_attitudes:
         #     print(att)
 
         # 遍历比较稳定的姿态（不包括 yaw）
         for part_attitude in stable_attitudes:
+
+            t3 = time.time()
+
             # 对每一组 roll, pitch 遍历 yaw
             for yaw in range(0, 360, step_width):
                 # 生成完整的姿态（包括 yaw）
@@ -397,6 +427,8 @@ class Container(object):
 
                     stable_transforms_score.put(tf_score)
 
+            t4 = time.time()
+            print("try every yaw in this attitude: ", t4 - t3, '\n')
 
                 # print("\nAfter each XY in priority queue: \n")
                 # cnt = 0
@@ -445,8 +477,16 @@ class PackingProblem(object):
         self.transforms = list()
     
     def pack_one_item(self, item_idx):
+
+        print("itme index: ", item_idx, '\n')
+
+        t1 = time.time()
+
         curr_item: Item = self.items[item_idx]
         transforms = self.container.search_possible_position(curr_item)
+
+        t2 = time.time()
+        print("search possible positions: ", t2 - t1, '\n')
 
         # 如果找不到可以放置的位置
         assert len(transforms) > 0, "未找到可以放置的位置和角度"
@@ -454,7 +494,15 @@ class PackingProblem(object):
         # 暂时不考虑放置物体后物体堆的稳定性
         # 直接按照排名第一的变换矩阵放置物体
         curr_item.transform(transforms[0])
+
+        t3 = time.time()
+        print("rotate to a position: ", t3 - t2, '\n')
+
         self.container.add_item(curr_item)
+
+        t4 = time.time()
+        print("add item to container: ", t4 - t3, '\n\n')
+
     
     def pack_all_items(self):
         for idx in self.sequence:
