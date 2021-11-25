@@ -1,5 +1,52 @@
 import numpy as np
 from show import *
+import time
+import pandas as pd
+from utils import *
+
+
+
+
+
+print(dist(0, 0, 0, 0.5, 0.5, 0.5))
+
+
+
+
+
+# x = [[[[] for k in range(3)] for j in range(3)] for i in range(4)]
+# print(x)
+
+# x[1][2][0].append((1, 3, 2))
+
+# x[2][1][1].append((0, 9, 4))
+
+# # print(x)
+# for l1 in x:
+#     for l2 in l1:
+#         for l3 in l2:
+#             print(l3, end=" ")
+#         print("")
+#     print("\n")
+
+
+# print(pow(2.5, 2))
+
+# list = [[[(3, 2, 1), (5, 5, 5)], [(2, 3, 2)]], [[(3, 1, 2), (0, 9, 4)], [(1, 2)]], [[(1, 2, 3)], [(2, 3, 4)]]]
+
+# print(list, "\n")
+
+# test = pd.DataFrame(data=list)
+# print(test, "\n")
+# test.to_csv('test.csv', encoding='utf-8')
+
+# data = pd.read_csv('test.csv')
+
+# array = data.values[0::, 1::]
+
+# print(array)
+# print(array.shape)
+
 
 # X = [[1, 2, 3],[3, 4, 5],[5, 6, 7]]  
 # Y = [[4, 4, 3], [0, 1, 7], [3, 1, 6]]
@@ -11,17 +58,31 @@ from show import *
 # display.show2d(Y)
 # plt.pause(5)
 
-A = np.zeros((3, 5))
-print(A.shape)
+# A = np.zeros((3, 5))
+# print(A.shape)
 
-B = np.matrix([1, 2, 3]).T
-print(B.shape)
+# B = np.matrix([1, 2, 3]).T
+# print(B.shape)
 
-A[:, 1:2] = B 
-print(A)
+# A[:, 1:2] = B 
+# print(A)
 
+# t1 = time.time()
 
+# upper_boxsize = 20
+# currPointAssemble = np.zeros((3, pow(upper_boxsize, 3)))
 
+# pointCnt = 0
+# for z in range(upper_boxsize):
+#     for x in range(upper_boxsize):
+#         for y in range(upper_boxsize):
+#             currPoint = np.mat([x, y, z]).T
+#             currPointAssemble[:, pointCnt: pointCnt + 1] = currPoint
+#             pointCnt += 1
+
+# t2 = time.time()
+
+# print(t2 - t1)
 
 
 

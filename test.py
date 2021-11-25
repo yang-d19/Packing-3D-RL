@@ -6,23 +6,32 @@ import time
 import queue
 
 # 生成随机大小的长方体
-def generate_random_item(size_range):
-    item_size = [random.randrange(size_range[0], size_range[1]) 
-                    for i in range(3)]
-    new_cube = np.ones(tuple(item_size))
-    return Item(new_cube)
+# def generate_random_item(size_range):
+#     item_size = [random.randrange(size_range[0], size_range[1]) 
+#                     for i in range(3)]
+#     new_cube = np.ones(tuple(item_size))
+#     return Item(new_cube)
 
-def generate_random_geom(size_range):
-    item_size = [random.randrange(size_range[0], size_range[1]) 
-                    for i in range(3)]
-    new_cube = np.ones(tuple(item_size))
-    return Geometry(new_cube)
+# def generate_random_geom(size_range):
+#     item_size = [random.randrange(size_range[0], size_range[1]) 
+#                     for i in range(3)]
+#     new_cube = np.ones(tuple(item_size))
+#     return Geometry(new_cube)
 
-def generate_random_items(num, size_range):
-    items = []
-    for i in range(num):
-        items.append(generate_random_item(size_range))
-    return items
+# def generate_random_items(num, size_range):
+#     items = []
+#     for i in range(num):
+#         items.append(generate_random_item(size_range))
+#     return items
+
+def getSurfaceItem(xSize, ySize, zSize):
+
+    cube = np.ones((xSize, ySize, zSize))
+    # 将内部全部置为0，只保留表面
+    cube[1: xSize-1, 1: ySize-1, 1: zSize-1] = 0
+
+    return Item(cube)
+
 
 def T0():
     display = Display([20, 20, 20])
@@ -100,11 +109,40 @@ def T4():
     while not Q.empty():
         print(Q.get())
     Q.get()
+
+def T5():
+    box_size = [40, 40, 40]
+  
+    # items = generate_random_items(5, [5, 10])
+    items = [getSurfaceItem(5, 13, 15),
+             getSurfaceItem(18, 6, 12),
+             getSurfaceItem(10, 10, 9), 
+             getSurfaceItem(16, 11, 13),
+             getSurfaceItem(12, 8, 5),
+             getSurfaceItem(8, 5, 4),
+            ]
+    # items = [Item(np.ones((5, 13, 15))),
+    #         Item(np.ones((18, 6, 12))),
+    #         Item(np.ones((10, 10, 9))), 
+    #         Item(np.ones((16, 11, 13))),
+    #         Item(np.ones((12, 8, 5))),
+    #         Item(np.ones((8, 5, 4)))
+    # ]
+
+    problem = PackingProblem(box_size, items)
+
+    # problem.pack_all_items()
+    display = Display(box_size)
+    
+    for idx in range(len(items)):
+        problem.pack_one_item(idx)   
+        display.show3d(problem.container.geometry)
+        input()
     
 
 if __name__ == "__main__":
 
-    T1()
+    T5()
     
 
     # display.show3d(problem.container.geometry)

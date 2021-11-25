@@ -23,6 +23,27 @@ class Geometry(object):
         self.x_size = len(cube[0])
         self.y_size = len(cube[0][0])      
         self.cube = cube
+        self.pointsMat = None
+        
+        self.getPoints()
+    
+    def getPoints(self):
+        tmpPoints = []
+        # 有多少个点
+        pointCnt = 0
+        for z in range(self.z_size):
+            for x in range(self.x_size):
+                for y in range(self.y_size):
+                    if self.cube[z][x][y] == 1:
+                        tmpPoints.append(np.mat([x, y, z]).T)
+                        pointCnt += 1
+        
+        # 新建行数为3，列数为点总数的 numpy 矩阵，依次填入各点，用于加速旋转矩阵运算
+        self.pointsMat = np.zeros((3, pointCnt))
+        for idx in range(pointCnt):
+            self.pointsMat[:, idx: idx + 1] = tmpPoints[idx]
+
+
     
     def centroid(self):
         #计算物体的质心
@@ -51,9 +72,7 @@ class Geometry(object):
                 for z in range(margin):
                     if self.cube[z][x][y] > 0:
                         contact_area += 1
-                        break
-        
-        
+                        break    
 
         return contact_area
 
@@ -78,13 +97,16 @@ class Geometry(object):
                     min_z += 1
                 heightmap[x][y] = self.z_size - min_z
         return heightmap
-    
-    #-------------TESTED--------------#
-    # 旋转几何体
-    def rotate(self, attitude: Attitude):
 
-        t_rotateStart = time.time()
+    def getRotateMatrix(self, attitude: Attitude):
+        """获取给定姿态的旋转矩阵
 
+        Args:
+            attitude (Attitude): 姿态
+
+        Returns:
+            np.mat: 旋转矩阵(3×3)
+        """
         # roll 是绕 x 轴旋转，pitch 是绕 y 轴旋转，yaw 是绕 z 轴旋转
         # 将角度值转换成弧度制
         alpha = attitude.roll * math.pi / 180
@@ -92,9 +114,9 @@ class Geometry(object):
         theta = attitude.yaw * math.pi / 180
 
         # 围绕原点做任意旋转时，所有点都在以如下值的半径的球中
-        radius = math.sqrt(pow(self.x_size, 2) 
-                        + pow(self.y_size, 2) 
-                        + pow(self.z_size, 2))
+        # radius = math.sqrt(pow(self.x_size, 2) 
+        #                 + pow(self.y_size, 2) 
+        #                 + pow(self.z_size, 2))
         
         T_roll = np.mat([[1,                 0,                0], 
                          [0,   math.cos(alpha), -math.sin(alpha)],
@@ -108,64 +130,92 @@ class Geometry(object):
                         [math.sin(theta),  math.cos(theta),   0],
                         [              0,                0,   1]])
 
+        # 给定旋转的执行顺序，依次是 roll, pitch, yaw
+        T_rotate = T_yaw * T_pitch * T_roll
+        return T_rotate
+
+
+    
+    def rotate(self, attitude: Attitude):
+        """旋转几何体（旧版）
+
+        Args:
+            attitude (Attitude): 旋转的目标位置
+        """        
+
+        # t_rotateStart = time.time()
+
+        # 围绕原点做任意旋转时，所有点都在以如下值的半径的球中
+        radius = math.sqrt(pow(self.x_size, 2) 
+                        + pow(self.y_size, 2) 
+                        + pow(self.z_size, 2))
+
+
         # 加上偏移量保证所有的点的坐标都大于零
         offset = np.mat([radius, radius, radius]).T
 
         # 给定旋转的执行顺序，依次是 roll, pitch, yaw
-        T_rotate = T_yaw * T_pitch * T_roll
+        # T_rotate = T_yaw * T_pitch * T_roll
+        T_rotate = self.getRotateMatrix(attitude)
 
         # 存储变换后的点
         new_points = []
 
-        # 改进后：逆映射
-        # 因为单个旋转矩阵是可逆的，而可逆矩阵的乘积是可逆的
-        # 所以可以找到变化的逆映射，遍历映射后空间，查找映射前的值
-        upper_boxsize = math.ceil(2 * radius)
-        T_rotate_inv = T_rotate.I
+        # 直接旋转变换后的物体有空洞, 因为离散点的映射可能会映射到相同的整数点内
+        # 因此在映射时优化，一个点映射到多个目标点
 
-        # 逐个点做变换太慢，将所有点组合为一个矩阵，一起乘以旋转的逆映射
-        # 组合矩阵的大小为 3 * n^3
-        currPointAssemble = np.zeros((3, pow(upper_boxsize, 3)))
+        # 使用预先处理的 self.points 加速矩阵运算
+        # 此时的 newPointMat 有正有负
+        newPointMat = T_rotate * self.pointsMat
 
-        t_beforeAssemble = time.time()
+        distThsld = 0.84          # 0.8661
 
-        pointCnt = 0
-        for z in range(upper_boxsize):
-            for x in range(upper_boxsize):
-                for y in range(upper_boxsize):
-                    currPoint = np.mat([x, y, z]).T
-                    currPointAssemble[:, pointCnt: pointCnt + 1] = currPoint - offset
-                    pointCnt += 1
-        
-        t_afterAssemble = time.time()
-        # print("Point Assemble Time: ", t_afterAssemble - t_beforeAssemble, "\n")
-
-        t_beforeMatMul = time.time()
-        
-        # 很大的矩阵乘法
-        originPointAssemble = T_rotate_inv * currPointAssemble
-
-        t_afterMatMul = time.time()
-        # print("Matrix Multiply Time: ", t_afterMatMul - t_beforeMatMul, "\n")
+        for idx in range(newPointMat.shape[1]):
+            
+            # 加上偏置后得到的都是正坐标
+            newPoint = newPointMat[:, idx: idx + 1] + offset
+            # 得到一个点的坐标（小数）
+            [nx, ny, nz] = [newPoint[i, 0] for i in range(3)]
+            pxList = [math.floor(nx), math.ceil(nx)]
+            pyList = [math.floor(ny), math.ceil(ny)]
+            pzList = [math.floor(nz), math.ceil(nz)]
+            
+            for px in pxList:
+                for py in pyList:
+                    for pz in pzList:
+                        # 计算变换后点到其周围整点的距离
+                        ptDist = dist(nx, ny, nz, px, py, pz)
+                        # 与 (nx, ny. nz) 距离小于阈值的整点都加入 new_points
+                        if ptDist < distThsld:
+                            new_points.append(np.mat([px, py, pz]).T)
 
 
-        t_beforeCreate = time.time()
+        # for z in range(self.z_size):
+        #     for x in range(self.x_size):
+        #         for y in range(self.y_size):
+        #             if self.cube[z][x][y] == 1:
+        #                 # 1*3 转置成 3*1
+        #                 curr_point = np.mat([x, y, z]).T
+        #                 new_point = T_rotate * curr_point + offset
 
-        # 遍历逆变换后点集的所有列
-        for idx in range(originPointAssemble.shape[1]):
-            [ox, oy, oz] = [round(originPointAssemble[i, idx]) for i in range(3)]
-            # 原坐标不在物体框架中，直接跳过
-            if ox < 0 or ox >= self.x_size \
-                or oy < 0 or oy >= self.y_size \
-                or oz < 0 or oz >= self.z_size:
-                continue
-            if self.cube[oz][ox][oy] > 0:
-                new_points.append(currPointAssemble[:, idx: idx + 1] + offset)
+        #                 distThsld = 0.8661
+        #                 [nx, ny, nz] = [new_point[i, 0] for i in range(3)]
+        #                 pxList = [math.floor(nx), math.ceil(nx)]
+        #                 pyList = [math.floor(ny), math.ceil(ny)]
+        #                 pzList = [math.floor(nz), math.ceil(nz)]
+
+        #                 for px in pxList:
+        #                     for py in pyList:
+        #                         for pz in pzList:
+        #                             # 与 (nx, ny. nz) 距离小于阈值的整点都加入 new_points
+        #                             if dist(nx, ny, nz, px, py, pz) < distThsld:
+        #                                 new_points.append(np.mat([px, py, pz]).T)
 
 
         min_x = min_y = min_z = math.ceil(radius)
         max_x = max_y = max_z = 0
 
+        # 找所有点各个轴方向的最大和最小值
         for point in new_points:
             min_x = min(min_x, point[0, 0])
             min_y = min(min_y, point[1, 0])
@@ -184,6 +234,10 @@ class Geometry(object):
         self.y_size = round(max_y - min_y + 1)
         self.z_size = round(max_z - min_z + 1)
 
+        assert self.x_size > 0 and self.y_size > 0 and self.z_size > 0, \
+            print("{} {} {}".format(self.x_size, self.y_size, self.z_size))
+        #"物体框架大小不正确"
+
         # 新建空的 cube
         self.cube = np.zeros((self.z_size, self.x_size, self.y_size))
         # 填充 cube 中的有值部分
@@ -191,10 +245,10 @@ class Geometry(object):
             [x, y, z] = [int(point[i, 0]) for i in range(3)]
             self.cube[z][x][y] = 1
         
-        t_afterCreate = time.time()
+        # t_afterCreate = time.time()
         # print("Create New Geometry Time: ", t_afterCreate - t_beforeCreate, "\n")
 
-        t_rotateEnd = time.time()
+        # t_rotateEnd = time.time()
         # print("Rotat Run Time: ", t_rotateEnd - t_rotateStart, "\n\n")
 
 
@@ -371,6 +425,7 @@ class Container(object):
         # for att in stable_attitudes:
         #     print(att)
 
+        attCnt = 0
         # 遍历比较稳定的姿态（不包括 yaw）
         for part_attitude in stable_attitudes:
 
@@ -428,7 +483,8 @@ class Container(object):
                     stable_transforms_score.put(tf_score)
 
             t4 = time.time()
-            print("try every yaw in this attitude: ", t4 - t3, '\n')
+            print("try number {} yaw in this attitude: {}".format(attCnt, t4 - t3))
+            attCnt += 1
 
                 # print("\nAfter each XY in priority queue: \n")
                 # cnt = 0
@@ -478,7 +534,7 @@ class PackingProblem(object):
     
     def pack_one_item(self, item_idx):
 
-        print("itme index: ", item_idx, '\n')
+        print("itme index: ", item_idx)
 
         t1 = time.time()
 
@@ -486,7 +542,7 @@ class PackingProblem(object):
         transforms = self.container.search_possible_position(curr_item)
 
         t2 = time.time()
-        print("search possible positions: ", t2 - t1, '\n')
+        print("search possible positions: ", t2 - t1)
 
         # 如果找不到可以放置的位置
         assert len(transforms) > 0, "未找到可以放置的位置和角度"
@@ -496,12 +552,12 @@ class PackingProblem(object):
         curr_item.transform(transforms[0])
 
         t3 = time.time()
-        print("rotate to a position: ", t3 - t2, '\n')
+        print("rotate to a position: ", t3 - t2)
 
         self.container.add_item(curr_item)
 
         t4 = time.time()
-        print("add item to container: ", t4 - t3, '\n\n')
+        print("add item to container: ", t4 - t3, '\n')
 
     
     def pack_all_items(self):
