@@ -4,10 +4,9 @@
 Author: John
 Email: johnjim0816@gmail.com
 Date: 2021-03-12 21:14:12
-LastEditor: John
-LastEditTime: 2021-09-15 13:21:03
-Discription: 
-Environment: 
+LastEditor: YangDing
+LastEditTime: 2021-12-11
+Discription: neural network models
 '''
 import torch
 import torch.nn as nn
@@ -30,6 +29,54 @@ class MLP(nn.Module):
         x = F.relu(self.fc1(x)) 
         x = F.relu(self.fc2(x))
         return self.fc3(x)
+
+class CNN(nn.Module):
+    """针对输入为图像的 Q 网络
+        输入为 3 通道的图片 (3 * h * w) ，每一层分别是: 
+            容器的 hm
+            物体的由上往下 hm
+            物体的由下往上 hm
+        输入为一张图片中的每个格点的选取概率: 
+            h * w 个点
+    """    
+    def __init__(self, state_dim, action_dim):
+        # state_dim 默认为 (3, 32, 32)
+        # action_dim 默认为 1024
+
+        assert state_dim[0] == 3 and state_dim[1] == state_dim[2] and \
+            pow(state_dim[1], 2) == action_dim, "状态维度和动作维度不匹配"
+
+        # 初始化卷积神经网络
+        super(MLP, self).__init__()
+
+        self.network = nn.Sequential(
+            # 卷积层1
+            # 如果在计算Q值时不考虑容器中已存在的物体下面的空洞，
+            # 则只需要3张height map就足以描述当前系统的完整状态
+            nn.Conv2d(3, 16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            # 卷积层2
+            nn.Conv2d(16, 48, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            # 展平成1维，此时有 48 * (state_dim[1]/4) * (state_dim[1]/4) 
+            # = 3 * state_dim[1]^2 个元素
+            nn.Flatten(),
+            # 全连接层
+            nn.Linear(3 * action_dim, 2 * action_dim),
+            nn.ReLU(),
+            nn.Linear(2 * action_dim, action_dim),
+        )
+
+        
+    def forward(self, x):
+        result = self.network(x)
+        return result
+
+
 
 class Critic(nn.Module):
     def __init__(self, n_obs, output_dim, hidden_size, init_w=3e-3):

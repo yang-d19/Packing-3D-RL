@@ -5,12 +5,18 @@ import pandas as pd
 from utils import *
 
 
+a = np.zeros((4, 4))
+b = np.zeros((4, 4))
+c = np.zeros((4, 4))
 
+a[1][2] = 1
+a[3][3] = 2
+b[2][1] = -1
+c[3][1] = -3
 
+d = np.array([a, b, c])
 
-print(dist(0, 0, 0, 0.5, 0.5, 0.5))
-
-
+print(d)
 
 
 

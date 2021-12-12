@@ -78,7 +78,7 @@ def T1():
     display = Display(box_size)
     
     for idx in range(len(items)):
-        problem.pack_one_item(idx)   
+        problem.autopack_oneitem(idx)   
         display.show3d(problem.container.geometry)
         input()
 
@@ -135,7 +135,7 @@ def T5():
     display = Display(box_size)
     
     for idx in range(len(items)):
-        problem.pack_one_item(idx)   
+        problem.autopack_oneitem(idx)   
         display.show3d(problem.container.geometry)
         input()
     
