@@ -14,14 +14,14 @@ def getSurfaceItem(xSize, ySize, zSize):
     return Item(cube)
 
 def Task():
-    box_size = (40, 40, 40)
+    box_size = (30, 30, 30)
   
     # 空心的，只保留表面，计算速度快
-    items = [getSurfaceItem(5, 8, 12),
-             getSurfaceItem(18, 6, 12),
-             getSurfaceItem(10, 10, 9), 
-             getSurfaceItem(12, 7, 8),
-             getSurfaceItem(12, 8, 5),
+    items = [getSurfaceItem(10, 9, 12),
+             getSurfaceItem(7, 6, 10),
+             getSurfaceItem(8, 10, 9), 
+             getSurfaceItem(10, 7, 8),
+             getSurfaceItem(9, 8, 5),
              getSurfaceItem(8, 5, 4),
             ]
 
@@ -42,8 +42,10 @@ def Task():
     for idx in range(len(items)):
         problem.autopack_oneitem(idx)   
         display.show3d(problem.container.geometry)
-        input()
+        # time.sleep(0.5)
+        plt.pause(0.5)
     
+    input("Demo 展示完成，按任意键退出")
 
 if __name__ == "__main__":
 
