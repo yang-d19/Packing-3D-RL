@@ -8,19 +8,25 @@ from utils import *
 from object import *
 from container import *
 
-# 解决装箱问题的顶层类
-# 可自定义元素包括一个容器、数个物体、装箱顺序
-# 接口：
-# pack_one_item() 装入一个物体
-# pack_all_items() 装入所有物体
+
 class PackingProblem(object):
 
     def __init__(self, box_size, items):
-        # box_size 的 3 个元素依次为 z, x, y
+        """解决装箱问题的顶层类
+
+        Args:
+            box_size (tuple): 箱子的大小，依次为(z, x, y)
+            items (list): 待装箱的物体列表
+        """        
+        # 容器
         self.container = Container(box_size)
+        # 待装箱物体的列表
         self.items = items
+        # 装箱顺序
         self.sequence = list(range(len(items)))
+        # 各物体的旋转矩阵
         self.transforms = list()
+        # 当前装了几个物体
         self.count = 0
     
 
@@ -55,7 +61,7 @@ class PackingProblem(object):
         # 计算从上往下放物体，物体的坐标
         # 实际上只更改了 z 坐标的值，xy 坐标不变
         # 判断能否放入（受到容器体积的制约可能会失败）
-        result = self.container.add_item_topdown()
+        result = self.container.add_item_topdown(item, x, y)
 
         if result is True:
             # 真正把物体放入容器中

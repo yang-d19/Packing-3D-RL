@@ -35,8 +35,8 @@ class DQN:
         target_net: 目标网络（延后于策略网络更新）
         optimizer: 优化器
         memory: 做记忆回放的缓存区
-
     """
+    
     def __init__(self, state_dim, action_dim, cfg):
 
         self.state_dim = state_dim

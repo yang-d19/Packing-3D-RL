@@ -30,6 +30,7 @@ class MLP(nn.Module):
         x = F.relu(self.fc2(x))
         return self.fc3(x)
 
+
 class CNN(nn.Module):
     """针对输入为图像的 Q 网络
         输入为 3 通道的图片 (3 * h * w) ，每一层分别是: 
@@ -47,7 +48,7 @@ class CNN(nn.Module):
             pow(state_dim[1], 2) == action_dim, "状态维度和动作维度不匹配"
 
         # 初始化卷积神经网络
-        super(MLP, self).__init__()
+        super(CNN, self).__init__()
 
         self.network = nn.Sequential(
             # 卷积层1
@@ -77,7 +78,6 @@ class CNN(nn.Module):
         return result
 
 
-
 class Critic(nn.Module):
     def __init__(self, n_obs, output_dim, hidden_size, init_w=3e-3):
         super(Critic, self).__init__()
@@ -97,6 +97,7 @@ class Critic(nn.Module):
         x = self.linear3(x)
         return x
 
+
 class Actor(nn.Module):
     def __init__(self, n_obs, output_dim, hidden_size, init_w=3e-3):
         super(Actor, self).__init__()  
@@ -112,6 +113,7 @@ class Actor(nn.Module):
         x = F.relu(self.linear2(x))
         x = torch.tanh(self.linear3(x))
         return x
+
 
 class ActorCritic(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim=256):

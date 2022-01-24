@@ -9,7 +9,11 @@ from object import *
 class Container(object):
 
     def __init__(self, box_size):
-        
+        """提供放置物体操作的容器类
+
+        Args:
+            box_size (tuple): 箱子的大小 (z, x, y)
+        """        
         self.boxSize = box_size
         # 创建空的几何体
         self.geometry = Geometry(np.zeros(tuple(box_size)))
@@ -79,6 +83,9 @@ class Container(object):
         Returns:
             bool: True表示能够放入容器中，False表示不能
         """        
+
+        assert type(x) == int and type(y) == int \
+            and x >= 0 and y >= 0, "x, y 必须为正整数"
 
         # 如果物体在平面维度不能放入容器中
         if x + item.curr_geometry.x_size > self.geometry.x_size \

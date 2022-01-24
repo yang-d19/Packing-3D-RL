@@ -6,7 +6,12 @@ from mpl_toolkits.mplot3d import Axes3D
 
 class Display:
     
-    def __init__(self, space_size=[10, 10, 10]):
+    def __init__(self, space_size=(10, 10, 10)):
+        """可视化展现容器的状态
+
+        Args:
+            space_size (tuple, optional): 容器的大小 (z, x, y). Defaults to (10, 10, 10).
+        """        
 
         plt.ion() #开启interactive mode 成功的关键函数
         # 设置三维视图显示
